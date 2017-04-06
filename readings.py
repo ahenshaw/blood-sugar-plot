@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.transforms as transforms
 from matplotlib.dates import DateFormatter
-from matplotlib.dates import DayLocator
+from matplotlib.dates import DayLocator, AutoDateLocator
 from matplotlib.backends.backend_pdf import PdfPages
 from cycler import cycler
+from math import atan, degrees
 import seaborn as sns
 from gdrive import getLatest
 
@@ -49,7 +50,7 @@ def make_plot(data):
     plt.suptitle('Blood Glucose and Weight')
     plt.ylabel('Concentration (mg/dL)')
     ax1.xaxis.set_major_formatter(DateFormatter('%#m/%d'))
-    ax1.xaxis.set_major_locator(DayLocator())
+    ax1.xaxis.set_major_locator(AutoDateLocator())
 
     events = glucose.groupby('Event')
     for name, event in events:
@@ -72,7 +73,16 @@ def make_plot(data):
     regression = linear_model.LinearRegression()
     regression.fit(dates, weights)
     trend = regression.predict(dates)
-    ax2.plot(weight['Date/Time'], trend, ':', color='#808080')
+    line = ax2.plot(weight['Date/Time'], trend, ':', color='#808080')
+    
+    # get number of days for all weight readings
+    run = (weight.iloc[0]-weight.iloc[-1])['Date/Time'].total_seconds() / (24*60*60)
+    slope = (trend[0][0]-trend[-1][0])/run
+    index = len(trend)//2
+    x     = weight['Date/Time'][index]
+    y     = trend[index][0]
+    ax2.annotate('%0.1f lbs/week' % (slope*7), xy=(x,y), xytext=(x,y), color='#808080',
+                 rotation=round(degrees(atan(slope))))
 
     plt.margins(x=0.1, y=0.1)
     plt.savefig('output/readings.png', orientation='landscape')
